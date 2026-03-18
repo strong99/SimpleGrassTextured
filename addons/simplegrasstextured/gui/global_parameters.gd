@@ -63,12 +63,12 @@ func _ready() -> void:
 	get_ok_button().custom_minimum_size.x = 100
 
 
-func _create_slider(label :String, min :float, max :float, step :float) -> EditorSpinSlider:
+func _create_slider(label :String, min_value :float, max_value :float, step :float) -> EditorSpinSlider:
 	var slider := EditorSpinSlider.new()
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.step = step;
-	slider.min_value = min
-	slider.max_value = max
+	slider.min_value = min_value
+	slider.max_value = max_value
 	slider.label = label
 	slider.custom_minimum_size.x = 80
 	return slider

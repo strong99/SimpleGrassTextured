@@ -104,7 +104,7 @@ extends MultiMeshInstance3D
 @export_group("Draw Collision Mask")
 ## This is the collision mask for drawing, this allows you to define what your 
 ## terrain collision mask is, that way it will be easier to draw your grass.
-@export_flags_3d_physics var collision_mask :int = pow(2, 32) - 1
+@export_flags_3d_physics var collision_mask :int = 4294967295
 
 var sgt_radius := 2.0
 var sgt_density := 25
@@ -118,14 +118,6 @@ var sgt_tool_shape := {}
 
 var temp_dist_min := 0.0
 
-# Deprecated vars:
-var player_pos := Vector3(1000000, 1000000, 1000000) : set = _on_set_player_pos
-var player_radius := 0.5 : set = _on_set_player_radius
-var wind_dir := Vector3.RIGHT : set = _on_set_wind_dir
-var wind_strength := 0.15 : set = _on_set_wind_strength
-var wind_turbulence := 1.0 : set = _on_set_wind_turbulence
-var wind_pattern : Texture = null : set = _on_set_wind_pattern
-
 var _default_mesh : Mesh = load("res://addons/simplegrasstextured/default_mesh.tres").duplicate()
 var _buffer_add : Array[Transform3D] = []
 var _material := load("res://addons/simplegrasstextured/materials/grass.material").duplicate() as ShaderMaterial
@@ -133,13 +125,6 @@ var _force_update_multimesh := false
 var _properties = []
 var _node_height_map = null
 var _singleton = null
-
-var _wrng_deprec_playerpos = true
-var _wrng_deprec_playerrad = true
-var _wrng_deprec_windir = true
-var _wrng_deprec_windstrng = true
-var _wrng_deprec_windturb = true
-var _wrng_deprec_windpatt = true
 
 
 func _init():
@@ -260,7 +245,7 @@ func _get_property_list() -> Array:
 	return _properties
 
 
-func eval_grass_transform(pos : Vector3, normal : Vector3, scale : Vector3, rotated : float) -> Transform3D:
+func eval_grass_transform(pos : Vector3, normal : Vector3, scaled : Vector3, rotated : float) -> Transform3D:
 	var trans := Transform3D()
 	if abs(normal.z) == 1:
 		trans.basis.x = Vector3(1,0,0)
@@ -273,13 +258,13 @@ func eval_grass_transform(pos : Vector3, normal : Vector3, scale : Vector3, rota
 		trans.basis.z = trans.basis.x.cross(normal)
 		trans.basis = trans.basis.orthonormalized()
 	trans = trans.rotated_local(Vector3.UP, rotated)
-	trans = trans.scaled(scale)
+	trans = trans.scaled(scaled)
 	trans = trans.translated(pos)
 	return trans
 
 
-func add_grass(pos : Vector3, normal : Vector3, scale : Vector3, rotated : float):
-	var trans := eval_grass_transform(pos, normal, scale, rotated)
+func add_grass(pos : Vector3, normal : Vector3, scaled : Vector3, rotated : float):
+	var trans := eval_grass_transform(pos, normal, scaled, rotated)
 	if sgt_dist_min > 0:
 		for trans_prev in _buffer_add:
 			if trans.origin.distance_to(trans_prev.origin) <= sgt_dist_min:
@@ -315,7 +300,7 @@ func erase(pos: Vector3, radius: float) -> void:
 	)
 
 
-func erase_cylinder(pos: Vector3, rx: float, height: float, rz: float, shape_transform: Transform3D) -> void:
+func erase_cylinder(rx: float, height: float, rz: float, shape_transform: Transform3D) -> void:
 	var aabb := AABB(Vector3(-rx, -height / 2, -rz), Vector3(rx, height / 2, rz) * 2)
 	aabb = shape_transform * aabb
 	if not (global_transform * multimesh.get_aabb()).intersects(aabb):
@@ -334,7 +319,7 @@ func erase_cylinder(pos: Vector3, rx: float, height: float, rz: float, shape_tra
 	)
 
 
-func erase_box(pos: Vector3, size: Vector3, shape_transform: Transform3D) -> void:
+func erase_box(size: Vector3, shape_transform: Transform3D) -> void:
 	var aabb := AABB(-size / 2, size)
 	if not (global_transform * multimesh.get_aabb()).intersects(shape_transform * aabb):
 		return
@@ -923,51 +908,3 @@ func _on_set_optimization_dist_max(value : float):
 	optimization_dist_max = value
 	if _material != null:
 		_material.set_shader_parameter("optimization_dist_max", optimization_dist_max)
-
-
-func _on_set_player_pos(value : Vector3):
-	player_pos = Vector3(1000000, 1000000, 1000000)
-	if value != Vector3(1000000, 1000000, 1000000):
-		#_singleton.set_player_position(value)
-		if _wrng_deprec_playerpos and (Engine.is_editor_hint() or OS.is_debug_build()):
-			_wrng_deprec_playerpos = false
-			push_warning("Simple Grass Textured: ("+name+") player_pos parameter is deprecated, use SimpleGrass.set_player_position")
-
-
-func _on_set_player_radius(value : float):
-	player_radius = 0.5
-	if _wrng_deprec_playerrad and (Engine.is_editor_hint() or OS.is_debug_build()):
-		_wrng_deprec_playerrad = false
-		push_warning("Simple Grass Textured: ("+name+") player_radius parameter is deprecated")
-
-
-func _on_set_wind_dir(value : Vector3):
-	wind_dir = Vector3.RIGHT
-	#_singleton.wind_direction = value
-	if _wrng_deprec_windir and (Engine.is_editor_hint() or OS.is_debug_build()):
-		_wrng_deprec_windir = false
-		push_warning("Simple Grass Textured: ("+name+") wind_dir parameter is deprecated, use SimpleGrass.wind_direction")
-
-
-func _on_set_wind_strength(value : float):
-	wind_strength = 0.15
-	#_singleton.wind_strength = value
-	if _wrng_deprec_windstrng and (Engine.is_editor_hint() or OS.is_debug_build()):
-		_wrng_deprec_windstrng = false
-		push_warning("Simple Grass Textured: ("+name+") wind_strength parameter is deprecated, use SimpleGrass.wind_strength")
-
-
-func _on_set_wind_turbulence(value : float):
-	wind_turbulence = 1.0
-	#_singleton.wind_turbulence = value
-	if _wrng_deprec_windturb and (Engine.is_editor_hint() or OS.is_debug_build()):
-		_wrng_deprec_windturb = false
-		push_warning("Simple Grass Textured: ("+name+") wind_turbulence parameter is deprecated, use SimpleGrass.wind_turbulence")
-
-
-func _on_set_wind_pattern(value : Texture):
-	wind_pattern = null
-	#RenderingServer.global_shader_parameter_set("sgt_wind_pattern", value)
-	if value != null and _wrng_deprec_windpatt and (Engine.is_editor_hint() or OS.is_debug_build()):
-		_wrng_deprec_windpatt = false
-		push_warning("Simple Grass Textured: ("+name+") wind_pattern parameter is deprecated, use SimpleGrass.set_wind_pattern")

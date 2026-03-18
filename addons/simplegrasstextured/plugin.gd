@@ -51,13 +51,13 @@ var _raycast_3d : RayCast3D = null
 var _pointer_decal : Decal = null
 var _pointer_img_circle = load("res://addons/simplegrasstextured/images/pointer.png")
 var _pointer_img_rect = load("res://addons/simplegrasstextured/images/pointer_rect.png")
-var _pointer_depth: int = DEFAULT_POINTER_DEPTH
+var _pointer_depth: float = DEFAULT_POINTER_DEPTH
 var _pointer_rotate: bool = true
 var _grass_selected = null
 var _position_draw := Vector3.ZERO
 var _normal_draw := Vector3.ZERO
 var _object_draw : Object = null
-var _edit_density := 25
+var _edit_density: float = 25.0
 var _edit_radius := 2.0
 var _edit_slope := Vector2(0, 45)
 var _edit_scale := Vector3.ONE
@@ -205,7 +205,7 @@ func _enter_tree() -> void:
 	add_inspector_plugin(_inspector_plugin)
 	
 	_raycast_3d = RayCast3D.new()
-	_raycast_3d.collision_mask = pow(2, 32) - 1
+	_raycast_3d.collision_mask = 4294967295
 	_raycast_3d.visible = false
 	_pointer_decal = Decal.new()
 	_pointer_decal.set_texture(Decal.TEXTURE_ALBEDO, _pointer_img_circle)
@@ -279,14 +279,12 @@ func _disable_plugin() -> void:
 			ProjectSettings.set_setting(entry["name"], null)
 	# Fix editor crash when disable plugin while SimpleGrassTextured node is selected
 	_grass_selected = null
-	var editor = get_editor_interface()
-	if editor != null:
-		var scene_root = editor.get_edited_scene_root()
-		if scene_root != null:
-			editor.edit_node(scene_root)
-			var selection = editor.get_selection()
-			if selection != null:
-				selection.clear()
+	var scene_root = EditorInterface.get_edited_scene_root()
+	if scene_root != null:
+		EditorInterface.edit_node(scene_root)
+		var selection = EditorInterface.get_selection()
+		if selection != null:
+			selection.clear()
 
 
 func _get_plugin_name() -> String:
@@ -513,15 +511,13 @@ func _enable_shaders(enable :bool) -> void:
 			dir.remove("res://addons/simplegrasstextured/materials/.gdignore")
 			scan = true
 		if scan:
-			var editor = get_editor_interface()
-			editor.get_resource_filesystem().scan.call_deferred()
+			EditorInterface.get_resource_filesystem().scan.call_deferred()
 	else:
 		var file := FileAccess.open("res://addons/simplegrasstextured/shaders/.gdignore", FileAccess.WRITE)
 		file.close()
 		file = FileAccess.open("res://addons/simplegrasstextured/materials/.gdignore", FileAccess.WRITE)
 		file.close()
-		var editor = get_editor_interface()
-		editor.get_resource_filesystem().scan.call_deferred()
+		EditorInterface.get_resource_filesystem().scan.call_deferred()
 
 
 func _create_shortcut(keycode :Key) -> Shortcut:
@@ -540,14 +536,14 @@ func _custom_config_memorize() -> String:
 	return config.encode_to_text()
 
 
-func get_custom_setting(name :String) -> Variant:
-	if ProjectSettings.has_setting(name):
-		return ProjectSettings.get_setting_with_override(name)
+func get_custom_setting(setting_name :String) -> Variant:
+	if ProjectSettings.has_setting(setting_name):
+		return ProjectSettings.get_setting_with_override(setting_name)
 	for entry in _custom_settings:
-		if entry["name"] != name:
+		if entry["name"] != setting_name:
 			continue
 		return entry["default"]
-	push_error("SimpleGrassTextured, setting not found: ", name)
+	push_error("SimpleGrassTextured, setting not found: ", setting_name)
 	return null
 
 
@@ -809,11 +805,10 @@ func _eval_brush() -> void:
 				_raycast_3d.global_transform.basis.x = Vector3.RIGHT
 				_raycast_3d.global_transform.basis.y = _normal_draw * -1
 				_raycast_3d.global_transform.basis.z = Vector3.BACK
-				_raycast_3d.global_transform.origin = _position_draw + _normal_draw + variation
+				_raycast_3d.global_transform.origin = _position_draw + (_normal_draw * _pointer_depth / 2.0) + variation
 				_raycast_3d.target_position = Vector3(0, _pointer_depth, 0)
 				_raycast_3d.collision_mask = _grass_selected.collision_mask
 				_raycast_3d.force_raycast_update()
-				var pos_grass : Vector3 = _raycast_3d.get_collision_point()
 				if _raycast_3d.is_colliding() and _raycast_3d.get_collider() == _object_draw:
 					var normal := _raycast_3d.get_collision_normal()
 					if normal.angle_to(Vector3.UP) < slope.x or normal.angle_to(Vector3.UP) > slope.y:
@@ -848,7 +843,7 @@ func _eval_brush() -> void:
 			_raycast_3d.global_transform.basis.x = Vector3.RIGHT
 			_raycast_3d.global_transform.basis.y = _normal_draw * -1
 			_raycast_3d.global_transform.basis.z = Vector3.BACK
-			_raycast_3d.global_transform.origin = _position_draw + _normal_draw + variation
+			_raycast_3d.global_transform.origin = _position_draw + (_normal_draw * _pointer_depth / 2.0) + variation
 			_raycast_3d.target_position = Vector3(0, _pointer_depth, 0)
 			_raycast_3d.collision_mask = _grass_selected.collision_mask
 			_raycast_3d.force_raycast_update()
@@ -869,12 +864,12 @@ func _eval_brush() -> void:
 			TOOL_SHAPE.SPHERE:
 				_grass_selected.erase(_position_draw - _grass_selected.global_position, _edit_radius)
 			TOOL_SHAPE.CYLINDER:
-				_grass_selected.erase_cylinder(_position_draw - _grass_selected.global_position, _edit_radius, _pointer_depth, _edit_radius, _pointer_decal.global_transform)
+				_grass_selected.erase_cylinder(_edit_radius, _pointer_depth, _edit_radius, _pointer_decal.global_transform)
 			TOOL_SHAPE.CYLINDER_INF_H:
-				_grass_selected.erase_cylinder(_position_draw - _grass_selected.global_position, _edit_radius, 1000000, _edit_radius, _pointer_decal.global_transform)
+				_grass_selected.erase_cylinder(_edit_radius, 1000000, _edit_radius, _pointer_decal.global_transform)
 			TOOL_SHAPE.BOX:
-				_grass_selected.erase_box(_position_draw, Vector3(_edit_radius, _edit_radius, _edit_radius) * 2, _pointer_decal.global_transform)
+				_grass_selected.erase_box(Vector3(_edit_radius, _edit_radius, _edit_radius) * 2, _pointer_decal.global_transform)
 			TOOL_SHAPE.BOX_INF_H:
-				_grass_selected.erase_box(_position_draw - _grass_selected.global_position, Vector3(_edit_radius, 1000000, _edit_radius) * 2, _pointer_decal.global_transform)
+				_grass_selected.erase_box(Vector3(_edit_radius, 1000000, _edit_radius) * 2, _pointer_decal.global_transform)
 	if _grass_selected.multimesh != null:
 		_gui_toolbar.label_stats.text = "Count: " + str(_grass_selected.multimesh.instance_count)

@@ -114,7 +114,7 @@ void vertex() {
 	float dist = 1.0;
 	if(optimization_by_distance) {
 		float node_dist = distance(NODE_POSITION_WORLD, MAIN_CAM_INV_VIEW_MATRIX[3].xyz);
-		dist = 1.0 - clamp(0.0, 1.0, float(randi % int(max(1.0, node_dist / optimization_level))));
+		dist = 1.0 - clamp(float(randi % int(max(1.0, node_dist / optimization_level))), 0.0, 1.0);
 		dist *= smoothstep(optimization_dist_max, optimization_dist_min, node_dist);
 	}
 
