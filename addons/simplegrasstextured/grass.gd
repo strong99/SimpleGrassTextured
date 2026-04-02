@@ -28,11 +28,12 @@ extends MultiMeshInstance3D
 ## copy paste your own mesh from any mesh component. Set as null for default 
 ## SimpleGrassTextured mesh.
 @export var mesh : Mesh = null : set = _on_set_mesh
+@export_category("Material settings")
 ## Color albedo for mesh material
 @export_color_no_alpha var albedo := Color.WHITE : set = _on_set_albedo
 ## Texture albedo for mesh, you can apply normal, metallic and roughness 
 ## textures on the "Material parameters" section
-@export var texture_albedo : Texture = load("res://addons/simplegrasstextured/textures/grassbushcc008.png") : set = _on_set_texture_albedo
+@export var texture_albedo : Texture = preload("res://addons/simplegrasstextured/textures/grassbushcc008.png") : set = _on_set_texture_albedo
 @export_group("Material parameters")
 ## Lets you setup a multi texture image by frames
 @export var texture_frames : Vector2i = Vector2i(1, 1) : set = _on_set_texture_frames;
@@ -58,6 +59,7 @@ extends MultiMeshInstance3D
 @export_enum("Red","Green","Blue","Alpha","Gray") var roughness_texture_channel : int = 0 : set = _on_set_roughness_texture_channel
 @export_range(0.0, 1.0) var roughness := 1.0 : set = _on_set_roughness
 @export_group("")
+@export_category("Grass settings")
 ## Scale height factor of all the grass
 @export var scale_h := 1.0 : set = _on_set_scale_h
 ## Scale width factor of all the grass
@@ -118,9 +120,9 @@ var sgt_tool_shape := {}
 
 var temp_dist_min := 0.0
 
-var _default_mesh : Mesh = load("res://addons/simplegrasstextured/default_mesh.tres").duplicate()
+var _default_mesh : Mesh = load("res://addons/simplegrasstextured/default_mesh.tres")
 var _buffer_add : Array[Transform3D] = []
-var _material := load("res://addons/simplegrasstextured/materials/grass.material").duplicate() as ShaderMaterial
+var _material := load("res://addons/simplegrasstextured/materials/grass.tres").duplicate() as ShaderMaterial
 var _force_update_multimesh := false
 var _properties = []
 var _node_height_map = null
@@ -163,6 +165,7 @@ func _ready():
 			set_meta(&"SimpleGrassTextured", "2.0.5")
 			disable_node_scale = false
 			disable_node_rotation = false
+	
 	if multimesh == null:
 		multimesh = MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
@@ -172,15 +175,13 @@ func _ready():
 		else:
 			multimesh.mesh = _default_mesh
 	_update_material_shader()
-	for isur in range(multimesh.mesh.get_surface_count()):
-		if multimesh.mesh.surface_get_material(isur) != null:
-			_material = multimesh.mesh.surface_get_material(isur)
-			if _material.get_reference_count() > 2:
-				_material = _material.duplicate()
-			break
-	for isur in range(multimesh.mesh.get_surface_count()):
-		if multimesh.mesh.surface_get_material(isur) == null:
-			multimesh.mesh.surface_set_material(isur, _material)
+	
+	if Engine.is_editor_hint():
+		if _material.get_reference_count() > 1:
+			_material = _material.duplicate()
+	
+	material_override = _material
+	
 	set_disable_scale(disable_node_scale)
 	if disable_node_rotation:
 		set_notify_transform(true)
@@ -386,10 +387,6 @@ func _apply_erase_tool(func_tool: Callable):
 		multimesh.take_over_path(path)
 	else:
 		multimesh = multi_new
-	if _material != null:
-		for isur in range(multimesh.mesh.get_surface_count()):
-			if multimesh.mesh.surface_get_material(isur) == null:
-				multimesh.mesh.surface_set_material(isur, _material)
 	if Engine.is_editor_hint():
 		baked_height_map = null
 		custom_aabb.position = Vector3.ZERO
@@ -423,10 +420,6 @@ func auto_center_position():
 		multimesh.take_over_path(path)
 	else:
 		multimesh = multi_new
-	if _material != null:
-		for isur in range(multimesh.mesh.get_surface_count()):
-			if multimesh.mesh.surface_get_material(isur) == null:
-				multimesh.mesh.surface_set_material(isur, _material)
 	if Engine.is_editor_hint():
 		if baked_height_map != null:
 			baked_height_map = null
@@ -458,7 +451,7 @@ func recalculate_custom_aabb():
 	custom_aabb.end = end
 
 
-func _update_multimesh():
+func _update_multimesh() -> void:
 	if multimesh == null:
 		multimesh = MultiMesh.new()
 		multimesh.mesh = mesh if mesh != null else _default_mesh
@@ -507,10 +500,6 @@ func _update_multimesh():
 		multimesh.take_over_path(path)
 	else:
 		multimesh = multi_new
-	if _material != null:
-		for isur in range(multimesh.mesh.get_surface_count()):
-			if multimesh.mesh.surface_get_material(isur) == null:
-				multimesh.mesh.surface_set_material(isur, _material)
 	_buffer_add.clear()
 	temp_dist_min = 0
 	if Engine.is_editor_hint():
@@ -583,9 +572,9 @@ func _local_height_map_to_global(img : Image) -> Image:
 	return result
 
 
-func bake_height_map():
+func bake_height_map() -> void:
 	if not Engine.is_editor_hint():
-		return null
+		return
 	if multimesh == null:
 		multimesh = MultiMesh.new()
 		multimesh.mesh = mesh if mesh != null else _default_mesh
@@ -596,7 +585,7 @@ func bake_height_map():
 	baked_height_map = img
 
 
-func clear_all():
+func clear_all() -> void:
 	if multimesh == null:
 		multimesh = MultiMesh.new()
 	if Engine.is_editor_hint() and multimesh.resource_path.length():
@@ -615,8 +604,8 @@ func clear_all():
 		custom_aabb.end = Vector3.ZERO
 
 
-func _update_height_map():
-	if Engine.is_editor_hint():
+func _update_height_map() -> void:
+	if Engine.is_editor_hint() or _singleton == null:
 		return
 	if multimesh == null:
 		multimesh = MultiMesh.new()
@@ -639,7 +628,7 @@ func _update_height_map():
 	_node_height_map = MeshInstance3D.new()
 	_node_height_map.mesh = PlaneMesh.new()
 	_node_height_map.mesh.size = Vector2(aabb.size.x, aabb.size.z)
-	var mat = load("res://addons/simplegrasstextured/materials/position.material").duplicate(true)
+	var mat = load("res://addons/simplegrasstextured/materials/position.tres").duplicate(true)
 	mat.set_shader_parameter("texture_albedo", texture)
 	_node_height_map.material_override = mat
 	_singleton._height_view.add_child(_node_height_map)

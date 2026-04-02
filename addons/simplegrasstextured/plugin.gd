@@ -191,6 +191,8 @@ func _enter_tree() -> void:
 		load("res://addons/simplegrasstextured/sgt_icon.svg")
 	)
 	
+	ProjectSettings.set_setting("layer_names/3d_render/layer_17", "SimpleGrassTextured interactive layer")
+	
 	_gui_toolbar = load("res://addons/simplegrasstextured/gui/toolbar.tscn").instantiate()
 	_gui_toolbar.visible = false
 	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_BOTTOM, _gui_toolbar)
